@@ -42,6 +42,7 @@ clock = pygame.time.Clock()
 # Тут опишите все классы игры.
 class GameObject:
     """Базовый класс для всех игровых объектов."""
+
     def __init__(self) -> None:
         """Инициализирует базовые атрибуты объекта."""
         self.position = None
@@ -54,6 +55,7 @@ class GameObject:
 
 class Apple(GameObject):
     """Класс яблока, наследуется от GameObject."""
+
     def __init__(self):
         """Инициализирует яблоко с красным цветом и случайной позицией."""
         super().__init__()
@@ -76,6 +78,7 @@ class Apple(GameObject):
 
 class Snake(GameObject):
     """Класс змейки, наследуется от GameObject."""
+
     def __init__(self):
         """Инициализирует змейку с начальными параметрами."""
         super().__init__()
