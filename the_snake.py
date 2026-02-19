@@ -1,4 +1,5 @@
 from random import randint
+
 import pygame as pg
 
 # Константы для размеров поля и сетки:
@@ -76,7 +77,7 @@ class GameObject:
             NotImplementedError: Если метод не переопределён в дочернем классе.
         """
         raise NotImplementedError(
-            f"Класс {self.__class__.__name__} не переопределил метод draw()"
+            f'Класс {self.__class__.__name__} не переопределил метод draw()'
         )
 
 
