@@ -8,9 +8,8 @@ GRID_SIZE = 20
 GRID_WIDTH = SCREEN_WIDTH // GRID_SIZE
 GRID_HEIGHT = SCREEN_HEIGHT // GRID_SIZE
 
-# Центральная позиция
-CENTER_X = (GRID_WIDTH // 2) * GRID_SIZE
-CENTER_Y = (GRID_HEIGHT // 2) * GRID_SIZE
+# Центральная ячейка
+CENTER_CELL = ((GRID_WIDTH // 2) * GRID_SIZE, (GRID_HEIGHT // 2) * GRID_SIZE)
 
 # Направления движения:
 UP = (0, -1)
@@ -24,6 +23,18 @@ OPPOSITE_DIRECTIONS = {
     DOWN: UP,
     LEFT: RIGHT,
     RIGHT: LEFT
+}
+
+# Словарь клавиш в направления
+KEY_TO_DIRECTION = {
+    pg.K_UP: UP,
+    pg.K_DOWN: DOWN,
+    pg.K_LEFT: LEFT,
+    pg.K_RIGHT: RIGHT,
+    pg.K_w: UP,
+    pg.K_s: DOWN,
+    pg.K_a: LEFT,
+    pg.K_d: RIGHT
 }
 
 # Цвета
@@ -62,12 +73,11 @@ class GameObject:
             position (tuple): Координаты ячейки (x, y)
             color (tuple, optional): Цвет ячейки в RGB.
         """
-        if color is None:
-            color = self.body_color
-
+        color = color or self.body_color
         rect = pg.Rect(position, (GRID_SIZE, GRID_SIZE))
         pg.draw.rect(screen, color, rect)
-        pg.draw.rect(screen, BORDER_COLOR, rect, 1)
+        if color != BORDER_COLOR:
+            pg.draw.rect(screen, BORDER_COLOR, rect, 1)
 
     def draw(self):
         """
@@ -77,7 +87,7 @@ class GameObject:
             NotImplementedError: Если метод не переопределён в дочернем классе.
         """
         raise NotImplementedError(
-            f'Класс {self.__class__.__name__} не переопределил метод draw()'
+            f'Класс {type(self).__name__} не переопределил метод draw()'
         )
 
 
@@ -95,7 +105,7 @@ class Apple(GameObject):
         super().__init__(body_color)
         self.randomize_position(occupied_positions)
 
-    def randomize_position(self, occupied_positions=None):
+    def randomize_position(self, occupied_positions=None):  # <-- ВЕРНУЛ =None
         """
         Устанавливает случайное положение яблока на игровом поле,
         избегая занятых позиций.
@@ -103,15 +113,13 @@ class Apple(GameObject):
         Args:
             occupied_positions (list, optional): Список занятых позиций.
         """
-        if occupied_positions is None:
+        if occupied_positions is None:  # <-- ВЕРНУЛ ПРОВЕРКУ
             occupied_positions = []
 
         while True:
-            new_position = (randint(0, GRID_WIDTH - 1) * GRID_SIZE,
-                            randint(0, GRID_HEIGHT - 1) * GRID_SIZE)
-
-            if new_position not in occupied_positions:
-                self.position = new_position
+            self.position = (randint(0, GRID_WIDTH - 1) * GRID_SIZE,
+                             randint(0, GRID_HEIGHT - 1) * GRID_SIZE)
+            if self.position not in occupied_positions:
                 break
 
     def draw(self):
@@ -134,10 +142,9 @@ class Snake(GameObject):
 
     def reset(self):
         """Сбрасывает змейку в начальное состояние."""
-        self.positions = [(CENTER_X, CENTER_Y)]
+        self.positions = [CENTER_CELL]
         self.length = 1
         self.direction = RIGHT
-        self.last = None
 
     def update_direction(self, new_direction):
         """
@@ -151,7 +158,7 @@ class Snake(GameObject):
 
     def move(self):
         """Обновляет позицию змейки."""
-        head_x, head_y = self.get_head_position()
+        head_x, head_y = self.positions[0]
         dir_x, dir_y = self.direction
 
         new_head = ((head_x + dir_x * GRID_SIZE) % SCREEN_WIDTH,
@@ -161,22 +168,12 @@ class Snake(GameObject):
 
         if len(self.positions) > self.length:
             self.last = self.positions.pop()
-        else:
-            self.last = None
 
     def draw(self):
         """Отрисовывает змейку на экране."""
         # Отрисовка головы змейки
-        self.draw_cell(self.get_head_position())
-
-        # Отрисовка тела змейки (если змейка длиннее 1 и ход после сброса)
-        if len(self.positions) > 1 and self.last is None:
-            for position in self.positions[1:]:
-                self.draw_cell(position)
-
-        # Затирание последнего сегмента
-        if self.last:
-            self.draw_cell(self.last, BOARD_BACKGROUND_COLOR)
+        for position in self.positions:
+            self.draw_cell(position)
 
     def get_head_position(self):
         """Возвращает позицию головы змейки."""
@@ -184,8 +181,7 @@ class Snake(GameObject):
 
     def check_collision(self):
         """Проверяет, столкнулась ли змейка сама с собой."""
-        head = self.get_head_position()
-        return head in self.positions[1:]
+        return self.positions[0] in self.positions[4:]
 
 
 def handle_keys(snake):
@@ -196,24 +192,13 @@ def handle_keys(snake):
         snake (Snake): Объект змейки
     """
     for event in pg.event.get():
-        if event.type == pg.QUIT:
+        if (event.type == pg.QUIT
+                or (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE)):
             pg.quit()
             raise SystemExit
 
-        if event.type == pg.KEYDOWN:
-            if event.key == pg.K_ESCAPE:
-                pg.quit()
-                raise SystemExit
-
-            direction_map = {
-                pg.K_UP: UP,
-                pg.K_DOWN: DOWN,
-                pg.K_LEFT: LEFT,
-                pg.K_RIGHT: RIGHT
-            }
-
-            if event.key in direction_map:
-                snake.update_direction(direction_map[event.key])
+        if event.type == pg.KEYDOWN and event.key in KEY_TO_DIRECTION:
+            snake.update_direction(KEY_TO_DIRECTION[event.key])
 
 
 def main():
@@ -229,15 +214,13 @@ def main():
         handle_keys(snake)
         snake.move()
 
-        ate_apple = snake.get_head_position() == apple.position
-        if ate_apple:
+        if snake.positions[0] == apple.position:
             snake.length += 1
             apple.randomize_position(snake.positions)
-
-        if not ate_apple and snake.check_collision():
+        elif snake.check_collision():
             snake.reset()
             apple.randomize_position(snake.positions)
-            screen.fill(BOARD_BACKGROUND_COLOR)
+        screen.fill(BOARD_BACKGROUND_COLOR)
 
         apple.draw()
         snake.draw()
@@ -245,4 +228,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main() randint
