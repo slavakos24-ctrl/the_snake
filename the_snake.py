@@ -71,7 +71,8 @@ class GameObject:
 
         Args:
             position (tuple): Координаты ячейки (x, y)
-            color (tuple, optional): Цвет ячейки в RGB.
+            color (tuple, optional): Цвет ячейки в RGB. Если не указан,
+            используется body_color.
         """
         color = color or self.body_color
         rect = pg.Rect(position, (GRID_SIZE, GRID_SIZE))
@@ -99,26 +100,28 @@ class Apple(GameObject):
         Инициализирует яблоко.
 
         Args:
-            occupied_positions (list, optional): Список занятых позиций.
+            occupied_positions (list, optional): Список занятых позиций,
+            на которые нельзя ставить яблоко.
             body_color (tuple, optional): Цвет яблока в RGB.
         """
         super().__init__(body_color)
         self.randomize_position(occupied_positions)
 
-    def randomize_position(self, occupied_positions=None):  # <-- ВЕРНУЛ =None
+    def randomize_position(self, occupied_positions=None):
         """
         Устанавливает случайное положение яблока на игровом поле,
         избегая занятых позиций.
 
         Args:
-            occupied_positions (list, optional): Список занятых позиций.
+            occupied_positions (list, optional): Список занятых позиций,
+            которые нужно исключить.
         """
-        if occupied_positions is None:  # <-- ВЕРНУЛ ПРОВЕРКУ
-            occupied_positions = []
-
+        occupied_positions = occupied_positions or []
         while True:
-            self.position = (randint(0, GRID_WIDTH - 1) * GRID_SIZE,
-                             randint(0, GRID_HEIGHT - 1) * GRID_SIZE)
+            self.position = (
+                randint(0, GRID_WIDTH - 1) * GRID_SIZE,
+                randint(0, GRID_HEIGHT - 1) * GRID_SIZE
+            )
             if self.position not in occupied_positions:
                 break
 
@@ -157,21 +160,22 @@ class Snake(GameObject):
             self.direction = new_direction
 
     def move(self):
-        """Обновляет позицию змейки."""
+        """Обновляет позицию змейки: добавляет новую голову и удаляет хвост."""
         head_x, head_y = self.positions[0]
         dir_x, dir_y = self.direction
 
-        new_head = ((head_x + dir_x * GRID_SIZE) % SCREEN_WIDTH,
-                    (head_y + dir_y * GRID_SIZE) % SCREEN_HEIGHT)
+        # Вставляем новую голову
+        self.positions.insert(0, (
+            (head_x + dir_x * GRID_SIZE) % SCREEN_WIDTH,
+            (head_y + dir_y * GRID_SIZE) % SCREEN_HEIGHT
+        ))
 
-        self.positions.insert(0, new_head)
-
+        # Удаляем хвост, если змейка не выросла
         if len(self.positions) > self.length:
-            self.last = self.positions.pop()
+            self.positions.pop()
 
     def draw(self):
-        """Отрисовывает змейку на экране."""
-        # Отрисовка головы змейки
+        """Отрисовывает все сегменты змейки на экране."""
         for position in self.positions:
             self.draw_cell(position)
 
@@ -180,8 +184,13 @@ class Snake(GameObject):
         return self.positions[0]
 
     def check_collision(self):
-        """Проверяет, столкнулась ли змейка сама с собой."""
-        return self.positions[0] in self.positions[4:]
+        """
+        Проверяет, столкнулась ли змейка сама с собой.
+
+        Returns:
+            bool: True если произошло столкновение, иначе False.
+        """
+        return self.get_head_position() in self.positions[4:]
 
 
 def handle_keys(snake):
@@ -189,11 +198,12 @@ def handle_keys(snake):
     Обрабатывает нажатия клавиш для управления змейкой.
 
     Args:
-        snake (Snake): Объект змейки
+        snake (Snake): Объект змейки.
     """
     for event in pg.event.get():
         if (event.type == pg.QUIT
-                or (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE)):
+                or (event.type == pg.KEYDOWN
+                    and event.key == pg.K_ESCAPE)):
             pg.quit()
             raise SystemExit
 
@@ -202,9 +212,8 @@ def handle_keys(snake):
 
 
 def main():
-    """Главная функция игры."""
+    """Главная функция игры, содержит основной игровой цикл."""
     pg.init()
-
     snake = Snake()
     apple = Apple(snake.positions)
 
@@ -214,14 +223,14 @@ def main():
         handle_keys(snake)
         snake.move()
 
-        if snake.positions[0] == apple.position:
+        if snake.get_head_position() == apple.position:
             snake.length += 1
             apple.randomize_position(snake.positions)
         elif snake.check_collision():
             snake.reset()
             apple.randomize_position(snake.positions)
-        screen.fill(BOARD_BACKGROUND_COLOR)
 
+        screen.fill(BOARD_BACKGROUND_COLOR)
         apple.draw()
         snake.draw()
         pg.display.update()
