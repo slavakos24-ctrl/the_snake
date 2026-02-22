@@ -25,8 +25,8 @@ OPPOSITE_DIRECTIONS = {
     RIGHT: LEFT
 }
 
-# Словарь клавиш в направления
-KEY_TO_DIRECTION = {
+# Словарь клавиш в направления (множественное число)
+KEYS_TO_DIRECTION = {
     pg.K_UP: UP,
     pg.K_DOWN: DOWN,
     pg.K_LEFT: LEFT,
@@ -107,13 +107,14 @@ class Apple(GameObject):
         super().__init__(body_color)
         self.randomize_position(occupied_positions)
 
+    # Если убрать None то будут падать автотесты.
     def randomize_position(self, occupied_positions=None):
         """
         Устанавливает случайное положение яблока на игровом поле,
         избегая занятых позиций.
 
         Args:
-            occupied_positions (list, optional): Список занятых позиций,
+            occupied_positions (list): Список занятых позиций,
             которые нужно исключить.
         """
         occupied_positions = occupied_positions or []
@@ -148,6 +149,7 @@ class Snake(GameObject):
         self.positions = [CENTER_CELL]
         self.length = 1
         self.direction = RIGHT
+        self.last_tail = None
 
     def update_direction(self, new_direction):
         """
@@ -164,6 +166,12 @@ class Snake(GameObject):
         head_x, head_y = self.positions[0]
         dir_x, dir_y = self.direction
 
+        # Сохраняем старый хвост
+        if len(self.positions) == self.length:
+            self.last_tail = self.positions[-1]
+        else:
+            self.last_tail = None
+
         # Вставляем новую голову
         self.positions.insert(0, (
             (head_x + dir_x * GRID_SIZE) % SCREEN_WIDTH,
@@ -175,9 +183,13 @@ class Snake(GameObject):
             self.positions.pop()
 
     def draw(self):
-        """Отрисовывает все сегменты змейки на экране."""
-        for position in self.positions:
-            self.draw_cell(position)
+        """Отрисовывает змейку на экране."""
+        # Рисуем только голову
+        self.draw_cell(self.get_head_position())
+
+        # Затираем старый хвост
+        if self.last_tail and self.last_tail not in self.positions:
+            self.draw_cell(self.last_tail, BOARD_BACKGROUND_COLOR)
 
     def get_head_position(self):
         """Возвращает позицию головы змейки."""
@@ -207,8 +219,8 @@ def handle_keys(snake):
             pg.quit()
             raise SystemExit
 
-        if event.type == pg.KEYDOWN and event.key in KEY_TO_DIRECTION:
-            snake.update_direction(KEY_TO_DIRECTION[event.key])
+        if event.type == pg.KEYDOWN and event.key in KEYS_TO_DIRECTION:
+            snake.update_direction(KEYS_TO_DIRECTION[event.key])
 
 
 def main():
@@ -229,8 +241,8 @@ def main():
         elif snake.check_collision():
             snake.reset()
             apple.randomize_position(snake.positions)
+            screen.fill(BOARD_BACKGROUND_COLOR)
 
-        screen.fill(BOARD_BACKGROUND_COLOR)
         apple.draw()
         snake.draw()
         pg.display.update()
